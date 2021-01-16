@@ -1,0 +1,22 @@
+In which university do you study?
+DAIICT
+Which course are you studying?
+Systems Software
+What is your area of interest?
+Kernel Programming
+In which university do you study?
+DAIICT
+Which course are you studying?
+Systems Software
+What is your area of interest?
+Kernel Programming
+What is your area of interest?
+Kernel Programming
+In which university do you study?
+DAIICT
+Which course are you studying?
+Systems Software
+Which course are you studying?
+Systems Software
+Quit
+Quit
