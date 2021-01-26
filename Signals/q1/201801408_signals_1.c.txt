@@ -1,0 +1,41 @@
+#include <stdio.h>
+#include <signal.h>
+#include <unistd.h>
+
+
+void Handler() //Signal Handler function for SIGALRM signal
+{
+    FILE *filePointer;
+    filePointer=fopen("201801408_signals_1.txt","a");   
+    if(filePointer==NULL)
+    {
+        printf("\nFailed to open the file\n");
+        exit(0);
+    } 
+    printf("\nIt took too long to enter the string\n");	
+    fputs("It took too long to enter the string\n",filePointer);
+	fclose(filePointer);
+	exit(-1);
+}
+
+int main(void)
+{
+    char message[100];
+    alarm(10);
+    signal(SIGALRM,Handler); 
+    printf("Enter Message : ");
+    scanf("%s",&message);
+    FILE *filePointer;
+    filePointer=fopen("201801408_signals_1.txt","a");   
+    if(filePointer==NULL)
+    {
+        printf("Failed to open the file\n");
+        exit(0);
+    } 	
+    fputs(message,filePointer);
+    fputs("\n",filePointer); 	
+    close(filePointer);
+    exit(0);
+}
+
+

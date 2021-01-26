@@ -1,0 +1,22 @@
+#include<stdio.h>
+#include<stdlib.h>
+#include<signal.h>
+#include<unistd.h>
+
+int main()
+{
+	int pid,choice;
+	printf("Enter PID of the signal : ");
+	scanf("%d",&pid);
+	printf("Press 1 to send signal to the particular process\n");
+	printf("Press 2 to send signal to the entire process group\n");
+	printf("Enter Choice : ");
+	scanf("%d",&choice);
+	if(choice==1)
+		kill(pid,SIGINT);
+	else if(choice==2)
+		kill(-1*pid,SIGINT);		
+	else
+		printf("Invalid Choice!");
+	return 0;	
+}

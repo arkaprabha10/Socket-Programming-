@@ -1,0 +1,5 @@
+Hello
+Bye
+It took too long to enter the string
+Computer
+It took too long to enter the string

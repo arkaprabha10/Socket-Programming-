@@ -1,0 +1,150 @@
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <sys/types.h>
+#include<stdlib.h>
+
+#define	READ	0      /* The index of the "read" end of the pipe */ 
+#define	WRITE	1      /* The index of the "write" end of the pipe */ 
+
+char* questions[] = {"Quit", "In which university do you study?", "Which course are you studying?", "What is your area of interest?"};
+char* answers[] = {"Quit", "DAIICT", "Systems Software", "Kernel Programming"}; 
+
+int choice=-1,stat;		// stat is to check status of wait call
+
+FILE *filePointer; 
+
+int fd1[2],fd2[2],bytesRead;    //fd1 is of parent to child, fd2 is of child to parent
+char message1[100],message2[100];
+
+pid_t parent_pid,child_pid;
+
+void handler_1(void) //Handler for Parent sending a signal to child
+{
+        bytesRead=read(fd1[READ],message1,100);  // Child reads the question asked by Parent 
+        int i;
+        for(i=0;i<=3;i++)
+        {
+            if(strcmp(questions[i],message1)==0)
+            break;
+        }       
+        choice=i;
+        
+        write(fd2[WRITE],answers[i],strlen(answers[i])+1);   //Child replies to the question asked by the parent
+        filePointer=fopen("201801408_signals_2.txt","a"); // Opening the existing file
+        if(filePointer==NULL) 
+        {
+            printf( "File failed to open");
+            exit(0);
+        }
+        fputs(message1,filePointer);
+        fputs("\n",filePointer);
+        fclose(filePointer);
+        kill(parent_pid,SIGUSR2); 	//send signal to parent
+	 
+        
+}
+
+void handler_2(void)   //Handler for child sending a signal to Parent
+{
+        
+        bytesRead = read(fd2[READ],message2,100); // Parent reads the answer from the Child
+        filePointer=fopen("201801408_signals_2.txt","a"); // Opening the existing file
+        if(filePointer==NULL) 
+        {
+            printf( "File failed to open");
+            exit(0);
+        }
+	fputs(message2,filePointer); 
+        fputs("\n",filePointer);
+        fclose(filePointer);
+        if(!strcmp(message2,"Quit"))
+        {
+            close(fd1[WRITE]);
+            close(fd2[READ]);
+            close(fd1[READ]);
+            close(fd2[WRITE]);
+            kill(child_pid,SIGINT);
+            return;
+        }
+        
+             int number;
+        while(1)
+        {
+            
+            printf("Enter your choice(1,2,3), and 0 to exit: ");
+            scanf("%d",&number);
+            
+            if(number>=0&&number<=3)
+            break;
+            
+            else
+            {
+                printf("Not Available\n");
+                continue;
+            }    
+            
+        }
+        write(fd1[WRITE],questions[number],strlen(questions[number])+1); //Parent asks a question to the child
+        kill(child_pid,SIGUSR1);		//send signal to child
+	sleep(1);       //to maintain sleep functionality
+}
+
+
+int main(void)
+{
+    pipe(fd1); 
+    pipe(fd2);
+    
+    if(signal(SIGUSR1,handler_1)==SIG_ERR)
+    printf("Error in creating handler for SIGUSR1\n");
+    if(signal(SIGUSR2,handler_2) == SIG_ERR)
+    printf("Error in creating handler for SIGUSR2\n");
+    
+    parent_pid=getpid(); //parent_pid
+    child_pid=fork();
+    
+    if(child_pid==0) //Child
+    {
+        close(fd1[WRITE]);
+        close(fd2[READ]);
+	//pause();
+        while(1)
+	{
+		sleep(1);			// to maintain sleep functionality
+	}
+    }
+    
+    else //Parent
+    {
+        close(fd1[READ]);
+        close(fd2[WRITE]);
+        int number;
+        
+        while(1)
+        {
+            printf("Enter your choice(1,2,3), or 0 to exit: ");
+            scanf("%d",&number);
+            if(number>=0 && number<=3)
+            {
+                write(fd1[WRITE],questions[number],strlen(questions[number])+1); //Parent asks a question to the child
+                break;
+            }
+                
+            else
+            {
+                printf("Invalid Option\n");
+            }
+        }    
+        kill(child_pid,SIGUSR1);	//send signal to child
+	pause();
+        wait(&stat);
+        
+    }
+    exit(0);
+}
+
+
