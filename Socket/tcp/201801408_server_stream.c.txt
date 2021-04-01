@@ -1,0 +1,155 @@
+
+
+// to receive a message for the first time  you need to first send a messsage 
+
+
+#include<stdio.h>
+#include<string.h>	//strlen
+#include<stdlib.h>	//strlen
+#include<sys/socket.h>
+#include<arpa/inet.h>	//inet_addr
+#include <sys/types.h>
+#include <netinet/in.h>
+#include<unistd.h>	//write
+#include<pthread.h> //for threading , link with pthread
+
+int K=8;
+void *connection_handler(void *);
+struct argument{
+	int sockvar[3];
+};
+
+int new_socket[5]={0};
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+
+int main(int argc , char *argv[])
+{
+	int socket_desc ,  portno, c ;
+	struct argument *new_sock;
+	struct sockaddr_in server , client;
+	char *message;
+	int t=atoi(argv[2]); int i=0;
+	puts("Enter mode in the command line\n\t1=One to one\n\t2=broadcast\n");
+	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
+
+	if (socket_desc == -1)
+	{
+		printf("Could not create socket");
+	}
+	
+	//Prepare the sockaddr_in struct
+        bzero((char *) &server, sizeof(server));
+        portno = atoi(argv[1]);
+	server.sin_family = AF_INET;
+	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_port = htons( portno );
+	
+	//Binding
+	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
+	{
+		puts("Bind failed");
+		return 1;
+	}
+		
+	//Listening 
+	listen(socket_desc , K);
+	
+	//Accept an incoming connection
+	puts("\nWaiting for incoming connections...\n");
+	c = sizeof(struct sockaddr_in);
+	
+	pthread_t sniffer_thread_create[K];		
+	while( (new_socket[i] = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c))&&i<K )
+	{
+		
+		puts("Connection accepted");
+		new_sock=(struct argument*)malloc(sizeof(struct argument));
+		new_sock->sockvar[0]=i;
+		new_sock->sockvar[1] = new_socket[i];
+		new_sock->sockvar[2]=t;
+		
+		if( pthread_create( &sniffer_thread_create[i] , NULL ,  connection_handler , (void*)(new_sock)) < 0)
+		{
+			perror("Could not create thread");
+			return 1;
+		}
+		
+		puts("Handler assigned");
+		if (new_socket[i]<0)
+		{
+			perror("Accept failed");
+			return 1;
+		}
+		i++;
+	
+	}
+	
+	for(int j=0;j<K;j++)
+	pthread_join( sniffer_thread_create[j], NULL);
+
+}
+
+/*  This will handle connection for each client */
+
+void *connection_handler(void *socket_desc)
+{
+	//Get the socket descriptor
+	struct argument *socke = (struct argument*)socket_desc;
+	int id=socke->sockvar[0];
+	int sock=socke->sockvar[1];
+	int mode=socke->sockvar[2];
+	char *message;
+	message = "Acknowledgement message from server.\n";
+	while(1)
+	{	
+		
+	     	char buffer[256];
+	     	bzero(buffer,256);
+	     	
+	        int n = read(sock ,buffer,255);
+	        if (n < 0) perror("ERROR reading from socket");
+		pthread_mutex_lock(&lock);
+		
+	        printf("\nMessage from client:%s\n",&buffer);
+	        write(sock , message , strlen(message));
+		
+		if(mode==2)
+		{
+			for(int j=0;j<K;j++)
+			{
+				if(j!=id && new_socket[j]>0)
+					write(new_socket[j], buffer , strlen(buffer));	
+			}
+		}
+		else
+		{
+			int count=0,required=0;
+			for(int j=0;j<K;j++)
+			{
+				if(new_socket[j]>0)
+					{
+						count=new_socket[j];
+						required++;
+					}
+				
+			}
+			if(new_socket[id]==count && id!=0)
+				write(new_socket[0], buffer , strlen(buffer));
+			else if(required!=1)
+				write(new_socket[id+1], buffer , strlen(buffer));
+			
+			
+		}
+		
+	    bzero(buffer,256);
+	    pthread_mutex_unlock(&lock);
+		
+	}
+	//Free the socket pointer
+	free(socket_desc);
+	free(socket);
+		
+	return 0;
+}
+

@@ -1,0 +1,83 @@
+// Client side implementation of UDP client-server model 
+// threading is done to enable client to listen to other server at any point of time
+#include <stdio.h> 
+#include <stdlib.h> 
+#include <unistd.h> 
+#include <string.h> 
+#include <sys/types.h> 
+#include <sys/socket.h> 
+#include <arpa/inet.h> 
+#include <netinet/in.h> 
+#include<pthread.h>
+#define MAXLINE 1024 
+struct sockaddr_in servaddr;
+void* to_receive(void* sockfd)
+{
+	int clientsocket=*((int*)sockfd);
+	while(1)
+	{
+		int n=-99999,len=sizeof(servaddr);
+		char buffer1[MAXLINE];
+		bzero(buffer1,MAXLINE);
+
+	    	n=recvfrom(clientsocket,buffer1,MAXLINE,0, 
+		  (struct sockaddr *)&servaddr,&len); 
+	    
+	    	if (n>=0) 
+		{
+			printf("\n%s\n",buffer1);
+			bzero(buffer1,MAXLINE);
+		}
+	}
+}
+
+
+// Driver code 
+int main(int argc,char *argv[]) { 
+	int sockfd,PORT;
+	PORT=atoi(argv[2]); 
+	char buffer[MAXLINE]; 
+	 // Creating socket file descriptor -  AF_INET for IPv4/ AF_INET6 for IPv6 - SOCK_STREAM for TCP / SOCK_DGRAM for UDP
+	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+		perror("Socket creation failed"); 
+		exit(EXIT_FAILURE); 
+	} 
+
+	memset(&servaddr, 0, sizeof(servaddr)); 
+	
+	// Filling server information 
+	servaddr.sin_family = AF_INET; // IPv4 - AF_INET for IPv4/ AF_INET6 for IPv6
+	servaddr.sin_port = htons(PORT); 
+	servaddr.sin_addr.s_addr = INADDR_ANY; 
+
+	char *message="validate";
+	int n=10, len=sizeof(servaddr); 
+
+	sendto(sockfd,(const char *)message,strlen(message), 
+		0,(const struct sockaddr *)&servaddr,len);
+	int l=0;
+	pthread_t peer_thread;
+	pthread_create(&peer_thread,NULL,to_receive,(void *)&sockfd);
+	while(1)
+	{
+		printf("Please enter the message: ");
+		bzero(buffer,MAXLINE);
+		fgets(buffer,MAXLINE,stdin);
+	    	
+	    	n=sendto(sockfd,(const char *)buffer,strlen(buffer), 
+		0,(const struct sockaddr *)&servaddr,len); 
+		 
+		if (n < 0) 
+		 perror("ERROR writing to socket");
+
+		else if(n>=0)
+		puts("Acknowledgement message from server\n");
+	   
+	    	bzero(buffer,MAXLINE);
+		
+	}
+	
+	
+	close(sockfd); 
+	return 0; 
+}
